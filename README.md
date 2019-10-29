@@ -1,0 +1,3 @@
+项目使用python3
+
+使用pipenv进行python包管理
