@@ -42,4 +42,10 @@ class Mysql(object):
         return self.cursor.fetchall()
 
     def close(self):
-        self.db.close()
+        if self.cursor:
+            self.cursor.close()
+        if self.db:
+            self.db.close()
+
+    def __del__(self):
+        self.close()

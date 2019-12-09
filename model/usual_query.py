@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from setting import tablename_to_fields
+from setting.db_query_setting import tablename_to_fields
 from connection.mysql_conn import Mysql
 import time
 import json
@@ -33,9 +33,13 @@ class CJsonEncoder(json.JSONEncoder):
 
 
 class Query(object):
-    """docstring for Query"""
+    """
+        此类功能：
+        1.拼接sql语句
+        2.通过mysql连接进行查询
+    """
 
-    def __init__(self, tablename, where_args, sort_args, page_args, export_args):
+    def __init__(self, tablename, where_args, sort_args="", page_args="", export_args=""):
         sort_part = self.get_sort(sort_args)
         limit_part = self.get_page(page_args)
         where_part = self.get_where(tablename, where_args)
@@ -49,40 +53,43 @@ class Query(object):
         in_conditions = []
         out_conditions = []
         others_conditions = []
-        for key, value in query.items():
+        print("进入get_where:")
+        for key, value, joiner in query:
+            print("查询条件：", key, value, joiner)
             if key.find("in_out_") == 0:
                 key = key[7:]
                 # key = tablename_to_fields[table]["transform"].get(key, key)
                 key = ("in_" + key, "out_" + key)
+                print(key)
                 if (key[0] not in fields) or (key[1] not in fields):
-                    # print("fields not exists this key：", key)
+                    print("fields not exists this key：", key)
                     continue
                 field = (fields[key[0]], fields[key[1]])
 
                 if field[0]["type"] in {"varchar", "char"}:
-                    in_conditions.append(key[0] + " " + field[0]["joiner"] + " '" + value + "'")
+                    in_conditions.append(key[0] + " " + joiner + " '" + value + "'")
                 else:
-                    in_conditions.append(key[0] + " " + field[0]["joiner"] + " " + value + "")
+                    in_conditions.append(key[0] + " " + joiner + " " + value + "")
 
                 if field[1]["type"] in {"varchar", "char"}:
-                    out_conditions.append(key[1] + " " + field[1]["joiner"] + " '" + value + "'")
+                    out_conditions.append(key[1] + " " + joiner + " '" + value + "'")
                 else:
-                    out_conditions.append(key[1] + " " + field[1]["joiner"] + " " + value + "")
+                    out_conditions.append(key[1] + " " + joiner + " " + value + "")
             else:
                 # key = tablename_to_fields[table]["transform"].get(key, key)
                 if key not in fields:
                     # print("fields not exists this key：", key)
+                    others_conditions.append(key + " " + joiner + " " + value + "")
                     continue
                 field = fields[key]
-                if field["type"] in {"varchar", "char"}:
-                    others_conditions.append(
-                        key + " " + field["joiner"] + " '" + value + "'")
+                if field["type"] in {"varchar", "char", "longtext"}:
+                    others_conditions.append(key + " " + joiner + " '" + value + "'")
                 else:
-                    others_conditions.append(
-                        key + " " + field["joiner"] + " " + value + "")
+                    others_conditions.append(key + " " + joiner + " " + value + "")
             # where_conditions.append("")
         sql_where = self.__combination_where_condition(in_conditions, out_conditions, others_conditions)
         # print("sql_where:\n", sql_where)
+        print("拼接完成的条件：", sql_where)
         return sql_where
 
     def __combination_where_condition(self, in_conditions, out_conditions, others):
@@ -108,10 +115,11 @@ class Query(object):
             sql_where = ''
         return sql_where
 
-    def get_page(self, query):
-        sql_limit = " limit "
-        sql_limit += str((int(query["pageIndex"]) - 1) * int(query["pageSize"])) + \
-                     "," + str(query["pageSize"])
+    def get_page(self, args):
+        sql_limit = ""
+        if args:
+            sql_limit = " limit "
+            sql_limit += str((int(args["pageIndex"]) - 1) * int(args["pageSize"])) + "," + str(args["pageSize"])
         return sql_limit
 
     def get_sort(self, sort_args):
@@ -171,9 +179,10 @@ class Query(object):
                                               str(int(round(t * 1000000))) + '.json'
         return response
 
-    def search(self):
+    async def search(self):
         start = time.clock()
         conn = Mysql("edges")
+        print(self.data_sql)
         conn.exe(self.data_sql)
         sql_result = conn.fetchall()
         # count_result = conn.execute_and_fetch(count_sql)  # count(*)执行时间过长,先注释掉

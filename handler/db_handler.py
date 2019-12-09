@@ -1,11 +1,13 @@
+from abc import ABC
+
 from tornado.web import RequestHandler
-from setting.arg_setting import type_validate_functions, request_args, required_args
-from setting.query_setting import action_type_to_tablename
-from model.usual_query import Query
+from setting.arg_setting import db_request_args, validate_args, db_required_args
+from setting.db_query_setting import action_type_to_tablename, action_type_expire
+from model.usual_query import Query, CJsonEncoder
 import json
 
 
-class dbHandler(RequestHandler):
+class DbHandler(RequestHandler, ABC):
     SUPPORTED_METHODS = RequestHandler.SUPPORTED_METHODS + ('RETURN400',)
 
     def return400(self, reason):
@@ -14,43 +16,41 @@ class dbHandler(RequestHandler):
         self.finish()
 
     def prepare(self):
-        args = self.request.arguments  # 获取所有参数
-        # 验证必需参数是否存在
-        for arg in required_args:
-            if arg not in args:
-                self.return400("必需参数 %s 不存在" % arg)
-        # 验证每个参数是否合法
-        for arg in args:
-            if arg not in request_args:
-                self.return400("参数 %s 不是合法参数" % arg)
-            validate_func = type_validate_functions[request_args["arg"]["validate"]["type"]]
-            value = self.get_argument(arg)
-            extra_args = request_args["arg"]["validate"].get("args")
-            result = False
-            if not extra_args:
-                result = validate_func(value, extra_args)
-            else:
-                result = validate_func(value)
-            if not result:
-                self.return400("参数 %s 的值不合法" % arg)
+        self.args = {str(k): self.request.arguments[k][0].decode() for k in self.request.arguments}  # 获取所有参数
+        print(self.args)
+        args = self.args
+        flag, msg = validate_args(args, db_required_args, db_request_args)
+        if not flag:
+            self.return400(msg)
 
     async def get(self):
-        args = self.request.arguments  # 获取所有参数
+        args = self.args
         action = args["action"]
         typE = args["type"]
         tablename = action_type_to_tablename[action][typE]
-        trans_args = {}
+        trans_args = {
+            "where": [],
+            "sort": {},
+            "page": {},
+            "export": {}
+        }
         for arg in args:
-            key_type = request_args[arg]["key_type"]
+            key_type = db_request_args[arg]["key_type"]
             if not key_type:
                 continue
-            if key_type not in trans_args:
-                trans_args[key_type] = {arg: args[arg]}
+            if key_type == "where":
+                joiner = db_request_args[arg]["joiner"]
+                trans_args[key_type].append((arg, args[arg], joiner))  # 传入参数名、参数值、和查询连接符号
             else:
                 trans_args[key_type][arg] = args[arg]
+
+        if action in action_type_expire and typE in action_type_expire[action]:
+            info = action_type_expire[action][typE]
+            trans_args["where"].append((info["field"], info["value"], info["joiner"]))
+
         query = Query(tablename, trans_args["where"], trans_args["sort"], trans_args["page"], trans_args["export"])
         query_result = await query.search()
-        self.write(json.dumps(query_result, ensure_ascii=False, indent=4))
+        self.write(json.dumps(query_result, ensure_ascii=False, indent=4, cls=CJsonEncoder))
 
     def on_finish(self):
         pass

@@ -1,12 +1,12 @@
 from tornado.ioloop import IOLoop
 from tornado.web import Application, url
-from handler.db_handler import dbHandler
+from handler.db_handler import DbHandler
 
 
 def make_app():
     return Application(
         [
-            url(r"/db", dbHandler, name="db"),
+            url(r"/db", DbHandler, name="db"),
         ],
         debug=True
     )
@@ -14,5 +14,5 @@ def make_app():
 
 if __name__ == "__main__":
     app = make_app()
-    app.listen(8888)
+    app.listen(2525)
     IOLoop.current().start()

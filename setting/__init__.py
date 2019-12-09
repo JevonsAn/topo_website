@@ -1,8 +1,8 @@
-from setting.arg_setting import request_args, type_validate_functions
-from setting.query_setting import action_type_to_tablename, tablename_to_fields
+from setting.arg_setting import db_request_args, type_validate_functions
+from setting.db_query_setting import action_type_to_tablename, tablename_to_fields
 
 # 验证 request_args 是否合法
-for k, v in request_args.items():
+for k, v in db_request_args.items():
     # 判断类型是否合法
     if not isinstance(v, dict):
         raise TypeError("setting.arg_setting 中 request_args 每个参数都应该是 dict 类型")
@@ -22,9 +22,9 @@ for k, v in request_args.items():
 
 func_type = type(lambda s: True)
 # 验证 type_validate_functions 是否合法
-for v in type_validate_functions.values():
-    if isinstance(v, func_type):
-        raise TypeError("setting.arg_setting 中 type_validate_functions 每个value都应该是函数")
+for k, v in type_validate_functions.items():
+    if not isinstance(v, func_type):
+        raise TypeError("setting.arg_setting 中 type_validate_functions 中 key: %s 的 value 不是函数" % k)
 
 # 验证 action_type_to_tablename 中的表是否和 tablename_to_fields 对应
 used_tablename_union = [vv in tablename_to_fields for v in action_type_to_tablename.values() for vv in v.values()]

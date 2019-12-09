@@ -7,8 +7,13 @@ class Neo4jDriver(object):
     def __init__(self):
         self._driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PWD))
 
+    def __del__(self):
+        if self._driver:
+            self._driver.close()
+
     def close(self):
-        self._driver.close()
+        if self._driver:
+            self._driver.close()
 
     def execute_and_get_one(self, cql):
         with self._driver.session() as session:
