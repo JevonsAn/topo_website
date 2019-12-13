@@ -9,6 +9,16 @@ from datetime import date
 from decimal import Decimal
 
 
+def getCountryIpNum():
+    conn = Mysql("statistics")
+    conn.exe("select value_info from form_data where key_info = 'top_country_ip_num'; ")
+    result = conn.fetchall()[0]["value_info"]
+    return json.loads(result)
+
+
+top_country_ipmap = getCountryIpNum()
+
+
 class Echo(object):
     """
     An object that implements just the write method of the file-like
@@ -43,26 +53,30 @@ class Query(object):
         sort_part = self.get_sort(sort_args)
         limit_part = self.get_page(page_args)
         where_part = self.get_where(tablename, where_args)
+        self.tablename = tablename
+        self.where_args = where_args
         self.data_sql = "select * from " + tablename + where_part + sort_part + limit_part + ";"
-        self.count_sql = "select count(*) from " + tablename + where_part + sort_part + ";"
+        self.count_sql = "select count(*) as c from " + tablename + where_part + sort_part + ";"
 
     def get_where(self, tablename, query):
+        if not tablename:
+            return ""
         fields = tablename_to_fields[tablename]["fields"]
         # print("fields:\n", fields)
         # sql_where = "where "
         in_conditions = []
         out_conditions = []
         others_conditions = []
-        print("进入get_where:")
+        # print("进入get_where:")
         for key, value, joiner in query:
-            print("查询条件：", key, value, joiner)
+            # print("查询条件：", key, value, joiner)
             if key.find("in_out_") == 0:
                 key = key[7:]
                 # key = tablename_to_fields[table]["transform"].get(key, key)
                 key = ("in_" + key, "out_" + key)
-                print(key)
+                # print(key)
                 if (key[0] not in fields) or (key[1] not in fields):
-                    print("fields not exists this key：", key)
+                    # print("fields not exists this key：", key)
                     continue
                 field = (fields[key[0]], fields[key[1]])
 
@@ -89,7 +103,7 @@ class Query(object):
             # where_conditions.append("")
         sql_where = self.__combination_where_condition(in_conditions, out_conditions, others_conditions)
         # print("sql_where:\n", sql_where)
-        print("拼接完成的条件：", sql_where)
+        # print("拼接完成的条件：", sql_where)
         return sql_where
 
     def __combination_where_condition(self, in_conditions, out_conditions, others):
@@ -180,20 +194,24 @@ class Query(object):
         return response
 
     async def search(self):
-        start = time.clock()
+        start = time.time()
         conn = Mysql("edges")
         print(self.data_sql)
         conn.exe(self.data_sql)
         sql_result = conn.fetchall()
-        # count_result = conn.execute_and_fetch(count_sql)  # count(*)执行时间过长,先注释掉
+        count_result = 0
+        print(self.where_args)
+        if self.tablename in {"edges.node_table", "edges.edge_table"} and len(self.where_args) == 1 and \
+                self.where_args[0][1] in top_country_ipmap:
+            count_result = top_country_ipmap[self.where_args[0][1]]
+        # else:
+        #     conn.exe(self.count_sql)
+        #     count_result = conn.fetchall()[0]["c"]
         conn.close()
-        # print("count_result:", count_result)
-        # print "程序执行时间"
-        # print (time.clock()-start)
         result = {
             "data": list(sql_result),
-            "itemsCount": 1000000,  # count_result[0]["count(*)"],
-            "time": round(time.clock() - start)
+            "itemsCount": count_result,
+            "time": time.time() - start
         }
         return result
         # 这个地方可以再讨论，到底是返回response还是数据。
@@ -204,3 +222,21 @@ class Query(object):
         #     response = HttpResponse(json.dumps(
         #         result, indent=4, cls=CJsonEncoder), content_type="application/json")
         # return response
+
+    async def searchBySQL(self, sql):
+        if not sql:
+            return {}
+        start = time.time()
+        conn = Mysql("edges")
+        print(sql)
+        conn.exe(sql)
+        sql_result = conn.fetchall()
+        conn.exe("select count(*) as c from (%s) a" % sql.strip(";"))
+        count_result = conn.fetchall()[0]["c"]
+        conn.close()
+        result = {
+            "data": list(sql_result),
+            "itemsCount": count_result,  # count_result[0]["count(*)"],
+            "time": time.time() - start
+        }
+        return result

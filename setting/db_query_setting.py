@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 action_union = {"ipv4", "ipv6", "router", "pop", "gateway", "cable"}
-type_union = {"node", "edge", "router_edge", "mpls_edge", "mrinfo_edge", "pchar_edge"}
+type_union = {"node", "edge", "router_edge", "mpls_edge", "mrinfo_edge", "pchar_edge", "neighbor"}
 
 action_type_to_tablename = {
     "ipv4": {

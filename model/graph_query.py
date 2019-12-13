@@ -13,37 +13,46 @@ class GraphQuery(object):
     def __init__(self):
         self.conn = Neo4jDriver()
 
-    async def search3hops(self, ip):
-        cql = 'MATCH (cs:node {ip:"%s"}) CALL apoc.path.expandConfig(cs,{relationshipFilter:"edge",maxLevel:3,' \
+    async def search3hops(self, ip, typE="ipv4"):
+        node_label = "node"
+        edge_label = "edge"
+        edge_table = "edges.edge_table"
+        if typE == "ipv6":
+            node_label = "_ipv6_total_node_table"
+            edge_label = "_ipv6_total_edge_table"
+            edge_table = "edges._ipv6_total_edge_table"
+        cql = 'MATCH (cs: %s {ip:"%s"}) CALL apoc.path.expandConfig(cs,{relationshipFilter:"%s",maxLevel:3,' \
               'bfs:true}) YIELD path WITH RELATIONSHIPS(path) as el unwind el as e RETURN startNode(e).ip as i, ' \
-              'endNode(e).ip as o, properties(e) as e limit 100' % ip
+              'endNode(e).ip as o, properties(e) as e limit 100' % (node_label, ip, edge_label)
         links = self.conn.execute_and_get_all(cql)
         ip_link_set = []
         for r in links:
             in_ip = r['i']
             out_ip = r['o']
             ip_link_set.append("(\"%s\", \"%s\")" % (in_ip, out_ip))
-        query = Query("edge_table", [("(in_ip, out_ip)", "(%s)" % ", ".join(ip_link_set), "in")])
-        query_result = await query.search()
-        query_result = {(d["in_ip"], d["out_ip"]): d for d in query_result["data"]}
         result = []
-        for r in links:
-            in_ip = r['i']
-            out_ip = r['o']
-            result.append(query_result[(in_ip, out_ip)])
+        if ip_link_set:
+            query = Query(edge_table, [("(in_ip, out_ip)", "(%s)" % ", ".join(ip_link_set), "in")])
+            query_result = await query.search()
+            query_result = {(d["in_ip"], d["out_ip"]): d for d in query_result["data"]}
+            for r in links:
+                in_ip = r['i']
+                out_ip = r['o']
+                result.append(query_result[(in_ip, out_ip)])
         return result
 
     async def search(self, action, args):
-        start_time = time.clock()
+        start = time.time()
         result = []
         if action == "3hops":
             ip = args["ip"]
-            result = await self.search3hops(ip)
+            typE = args["type"]
+            result = await self.search3hops(ip, typE)
 
         return {
             "data": list(result),
             "itemsCount": len(result),  # count_result[0]["count(*)"],
-            "time": round(time.clock() - start_time)
+            "time": time.time() - start
         }
 
     def __del__(self):

@@ -220,6 +220,13 @@ db_request_args = {
         "key_type": "where",
         "joiner": "="
     },
+    "in_out_pop_id": {
+        "validate": {
+            "type": "string",
+        },
+        "key_type": "where",
+        "joiner": "="
+    },
 }
 
 graph_request_args = {
@@ -227,6 +234,14 @@ graph_request_args = {
         "validate": {
             "type": "union",
             "args": {"3hops"},
+        },
+        "key_type": "",
+        "joiner": "="
+    },
+    "type": {
+        "validate": {
+            "type": "union",
+            "args": {"ipv4", "ipv6"},
         },
         "key_type": "",
         "joiner": "="
