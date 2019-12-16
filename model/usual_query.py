@@ -13,13 +13,8 @@ from decimal import Decimal
 
 
 class Echo(object):
-    """
-    An object that implements just the write method of the file-like
-    interface.
-    """
 
     def write(self, value):
-        """Write the value by returning it, instead of storing in a buffer."""
         return value
 
 
@@ -33,6 +28,47 @@ class CJsonEncoder(json.JSONEncoder):
             return float(obj)
         else:
             return json.JSONEncoder.default(self, obj)
+
+
+def formatter(export_type, rows):
+    def trans_list_to_xml(data_list):
+        # 字典转换为xml字符串
+        xml_data = []
+        for row in data_list:
+            xml_row = []
+            for k in row.keys():  # 遍历字典排序后的key
+                v = row.get(k)  # 取出字典中key对应的value
+                xml_row.append(
+                    '<{key}>{value}</{key}>'.format(key=k, value=v))
+            xml_row = ''.join(xml_row)
+            xml_row = '<row>{}</row>'.format(xml_row)
+            xml_data.append(xml_row)
+        xml_data = '<xml>{}</xml>'.format(''.join(xml_data))
+        return xml_data
+
+    def trans_list_to_csv(data_list):
+        """A view that streams a large CSV file."""
+        pseudo_buffer = Echo()
+        writer = csv.writer(pseudo_buffer)
+        first_line = sorted(data_list[0].keys())
+        result = "\ufeff" + "".join([writer.writerow(first_line)] +
+                                    [writer.writerow([row[k] for k in first_line]) for row in data_list])
+        return result
+
+    def trans_list_to_json(data_list):
+        json_data = json.dumps(data_list, cls=CJsonEncoder, ensure_ascii=False, indent=4)
+        return json_data
+
+    if not rows:
+        return ""
+
+    if export_type == "csv":
+        return trans_list_to_csv(rows)
+    elif export_type == "json":
+        return trans_list_to_json(rows)
+    elif export_type == "xml":
+        return trans_list_to_xml(rows)
+    return ""
 
 
 class Query(object):
@@ -50,7 +86,7 @@ class Query(object):
         where_part = self.get_where()
         self.where_part = where_part
         self.data_sql = "select * from " + tablename + where_part + sort_part + limit_part + ";"
-        self.count_sql = "select count(*) as c from " + tablename + where_part + sort_part + ";"
+        self.count_sql = "select count(*) as c from " + tablename + where_part + ";"
         self.export_sql = "select * from " + tablename + where_part + sort_part + ";"
         self.timeout_time = 1
         self.redis_tablename = "count_cache"
@@ -137,61 +173,11 @@ class Query(object):
         return sql_limit
 
     def get_sort(self, sort_args):
-        return ""
-
-    def export(self, query, rows):
-        def trans_list_to_xml(data_list):
-            # 字典转换为xml字符串
-            xml_data = []
-            for row in data_list:
-                xml_row = []
-                for k in row.keys():  # 遍历字典排序后的key
-                    v = row.get(k)  # 取出字典中key对应的value
-                    xml_row.append(
-                        '<{key}>{value}</{key}>'.format(key=k, value=v))
-                xml_row = ''.join(xml_row)
-                xml_row = '<row>{}</row>'.format(xml_row)
-                xml_data.append(xml_row)
-            xml_data = '<xml>{}</xml>'.format(xml_data)
-            return xml_data
-
-        def trans_list_to_csv(data_list):
-            """A view that streams a large CSV file."""
-            # Generate a sequence of rows. The range is based on the maximum number of
-            # rows that can be handled by a single sheet in most spreadsheet
-            # applications.
-            return data_list
-
-        def trans_list_to_json(data_list):
-            # print("data_list:")
-            # print(data_list[:1])
-            json_data = json.dumps(data_list, cls=CJsonEncoder, ensure_ascii=False, indent=4)
-            return json_data
-
-        t = time.time()
-
-        if ("xml" == query["export_type"]):
-            data = trans_list_to_xml(rows)
-            response = FileResponse(data)
-            response['Content-Type'] = 'application/xml'
-            response['Content-Disposition'] = 'attachment;filename=' + \
-                                              str(int(round(t * 1000000))) + '.xml'
-        elif ("csv" == query["export_type"]):
-            pseudo_buffer = Echo()
-            # rows = (["Row {}".format(idx), str(idx)] for idx in xrange(65536))
-            writer = csv.writer(pseudo_buffer)
-            response = StreamingHttpResponse((writer.writerow(row) for row in rows),
-                                             content_type="text/csv")
-            response['Content-Disposition'] = 'attachment;filename=' + \
-                                              str(int(round(t * 1000000))) + '.csv'
-        # if("json" == query["export_type"]):
-        else:
-            data = trans_list_to_json(rows)
-            response = FileResponse(data)
-            response['Content-Type'] = 'application/json'
-            response['Content-Disposition'] = 'attachment;filename=' + \
-                                              str(int(round(t * 1000000))) + '.json'
-        return response
+        sort_part = ""
+        if "sortField" in sort_args and "sortOrder" in sort_args:
+            sort_part = " order by %s %s " % (
+            sort_args["sortField"], "asc" if sort_args["sortOrder"] == "ascending" else "desc")
+        return sort_part
 
     def fetch_count(self):
         result = redis_conn.hget(self.redis_tablename, self.key)
@@ -246,21 +232,27 @@ class Query(object):
             time.sleep(0.5)
         return self.fetch_count()
 
+    async def searchExport(self):
+        isSuccess, sql_result = publicConnManage.execute_and_fetch(self.export_sql, use_pool=False)
+        if not isSuccess:
+            raise sql_result
+        return list(sql_result)
+
     async def searchBySQL(self, sql):
         """这个函数的sql参数中，暂不支持limit"""
         if not sql:
             return {}
         start = time.time()
-        isSuccess, sql_result = publicConnManage.execute_and_fetch(self.data_sql)
+        isSuccess, sql_result = publicConnManage.execute_and_fetch(sql)
         if not isSuccess:
             raise sql_result
         count_sql = "select count(*) as c from (%s) a" % sql.strip(";")  # 这条语句需要保证sql里没有limit
-        isSuccess, count_result = publicConnManage.execute_and_fetch(count_sql, fetchone=True)["c"]
+        isSuccess, count_result = publicConnManage.execute_and_fetch(count_sql, fetchone=True)
         if not isSuccess:
             raise count_result
         result = {
             "data": list(sql_result),
-            "itemsCount": count_result,  # count_result[0]["count(*)"],
+            "itemsCount": count_result["c"],
             "time": time.time() - start
         }
         return result

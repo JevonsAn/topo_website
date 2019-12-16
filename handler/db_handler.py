@@ -1,9 +1,10 @@
+import datetime
 from abc import ABC
 
 from tornado.web import RequestHandler
 from setting.arg_setting import db_request_args, validate_args, db_required_args
 from setting.db_query_setting import action_type_to_tablename, action_type_expire
-from model.usual_query import Query, CJsonEncoder
+from model.usual_query import Query, CJsonEncoder, formatter
 import json
 
 
@@ -55,11 +56,24 @@ class DbHandler(RequestHandler, ABC):
             trans_args["where"].append((info["field"], info["value"], info["joiner"]))
 
         query = Query(tablename, trans_args["where"], trans_args["sort"], trans_args["page"], trans_args["export"])
-        if not trans_args["export"]:
+        export_args = trans_args["export"]
+
+        if (not export_args) or "export" not in export_args or "export_type" not in export_args:
             query_result = await query.search()
             self.write(json.dumps(query_result, ensure_ascii=False, indent=4, cls=CJsonEncoder))
+
         else:
-            self.write()
+            query_result = await query.searchExport()
+            content = formatter(export_args["export_type"], query_result)
+            type_map = {
+                "json": "application/json",
+                "xml": "application/xml",
+                "csv": "text/csv"
+            }
+            self.set_header("Content-Disposition", "attachment;filename=%s.%s" %
+                            (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), export_args["export_type"]))
+            self.set_header("Content-Type", type_map[export_args["export_type"]])
+            self.write(content)
 
     def on_finish(self):
         pass

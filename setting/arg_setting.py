@@ -123,7 +123,8 @@ db_request_args = {
     },
     "sortOrder": {
         "validate": {
-            "type": "",
+            "type": "union",
+            "args": {"ascending", "descending"}
         },
         "key_type": "sort",
         "joiner": "="
@@ -137,7 +138,8 @@ db_request_args = {
     },
     "export_type": {
         "validate": {
-            "type": "",
+            "type": "union",
+            "args": {"json", "csv", "xml"}
         },
         "key_type": "export",
         "joiner": "="
