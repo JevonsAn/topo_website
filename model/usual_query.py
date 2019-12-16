@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
+import threading
+
 from setting.db_query_setting import tablename_to_fields
-from connection.mysql_conn import Mysql
+from connection.mysql_conn import publicConnManage
+from connection.redis_conn import redis_conn
 import time
 import json
 import csv
 from datetime import datetime
 from datetime import date
 from decimal import Decimal
-
-
-def getCountryIpNum():
-    conn = Mysql("statistics")
-    conn.exe("select value_info from form_data where key_info = 'top_country_ip_num'; ")
-    result = conn.fetchall()[0]["value_info"]
-    return json.loads(result)
-
-
-top_country_ipmap = getCountryIpNum()
 
 
 class Echo(object):
@@ -50,15 +43,22 @@ class Query(object):
     """
 
     def __init__(self, tablename, where_args, sort_args="", page_args="", export_args=""):
-        sort_part = self.get_sort(sort_args)
-        limit_part = self.get_page(page_args)
-        where_part = self.get_where(tablename, where_args)
         self.tablename = tablename
         self.where_args = where_args
+        sort_part = self.get_sort(sort_args)
+        limit_part = self.get_page(page_args)
+        where_part = self.get_where()
+        self.where_part = where_part
         self.data_sql = "select * from " + tablename + where_part + sort_part + limit_part + ";"
         self.count_sql = "select count(*) as c from " + tablename + where_part + sort_part + ";"
+        self.export_sql = "select * from " + tablename + where_part + sort_part + ";"
+        self.timeout_time = 1
+        self.redis_tablename = "count_cache"
+        self.key = self.tablename + "@" + self.where_part
 
-    def get_where(self, tablename, query):
+    def get_where(self):
+        tablename = self.tablename
+        query = self.where_args
         if not tablename:
             return ""
         fields = tablename_to_fields[tablename]["fields"]
@@ -193,47 +193,71 @@ class Query(object):
                                               str(int(round(t * 1000000))) + '.json'
         return response
 
+    def fetch_count(self):
+        result = redis_conn.hget(self.redis_tablename, self.key)
+        if result:
+            result = json.loads(result.decode())
+        return result
+
+    def exe_count(self):
+        def exec_write_redis(this_object, outer_lock):
+            outer_lock.acquire()
+            start_time = time.time()
+            rr = redis_conn.hset(this_object.redis_tablename, this_object.key,
+                                 json.dumps({"itemsCount": None, "time": "未知"}))
+            _, count_result = publicConnManage.execute_and_fetch(this_object.count_sql, use_pool=False, fetchone=True,
+                                                                 dictionary=False)
+            result = {
+                "itemsCount": count_result[0],
+                "time": time.time() - start_time
+            }
+            rr = redis_conn.hset(this_object.redis_tablename, this_object.key, json.dumps(result))
+            try:
+                outer_lock.release()
+            except Exception as e:
+                print(e)
+
+        lock = threading.Lock()
+        t = threading.Thread(target=exec_write_redis, args=(self, lock,))
+        t.start()
+        state = lock.acquire(blocking=True, timeout=self.timeout_time)  # 会阻塞
+
+        del lock
+        outer_result = self.fetch_count()
+        return outer_result
+
     async def search(self):
         start = time.time()
-        conn = Mysql("edges")
-        print(self.data_sql)
-        conn.exe(self.data_sql)
-        sql_result = conn.fetchall()
-        count_result = 0
-        print(self.where_args)
-        if self.tablename in {"edges.node_table", "edges.edge_table"} and len(self.where_args) == 1 and \
-                self.where_args[0][1] in top_country_ipmap:
-            count_result = top_country_ipmap[self.where_args[0][1]]
-        # else:
-        #     conn.exe(self.count_sql)
-        #     count_result = conn.fetchall()[0]["c"]
-        conn.close()
+        isSuccess, sql_result = publicConnManage.execute_and_fetch(self.data_sql)
+        if not isSuccess:
+            raise sql_result
+        count_result = self.fetch_count()
+        if count_result is None:
+            count_result = self.exe_count()
         result = {
             "data": list(sql_result),
-            "itemsCount": count_result,
+            "itemsCount": count_result["itemsCount"],
             "time": time.time() - start
         }
         return result
-        # 这个地方可以再讨论，到底是返回response还是数据。
-        # if("export" in http_args["export"] and http_args["export"]["export"] == "true"):
-        #     # print("export is true")
-        #     response = self.export(http_args["export"], result["data"])
-        # else:
-        #     response = HttpResponse(json.dumps(
-        #         result, indent=4, cls=CJsonEncoder), content_type="application/json")
-        # return response
+
+    async def searchCount(self):
+        while not self.fetch_count():
+            time.sleep(0.5)
+        return self.fetch_count()
 
     async def searchBySQL(self, sql):
+        """这个函数的sql参数中，暂不支持limit"""
         if not sql:
             return {}
         start = time.time()
-        conn = Mysql("edges")
-        print(sql)
-        conn.exe(sql)
-        sql_result = conn.fetchall()
-        conn.exe("select count(*) as c from (%s) a" % sql.strip(";"))
-        count_result = conn.fetchall()[0]["c"]
-        conn.close()
+        isSuccess, sql_result = publicConnManage.execute_and_fetch(self.data_sql)
+        if not isSuccess:
+            raise sql_result
+        count_sql = "select count(*) as c from (%s) a" % sql.strip(";")  # 这条语句需要保证sql里没有limit
+        isSuccess, count_result = publicConnManage.execute_and_fetch(count_sql, fetchone=True)["c"]
+        if not isSuccess:
+            raise count_result
         result = {
             "data": list(sql_result),
             "itemsCount": count_result,  # count_result[0]["count(*)"],

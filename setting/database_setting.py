@@ -39,3 +39,6 @@ databases = {
         "port": 3306
     }
 }
+
+REDIS_HOST = "10.10.11.150"
+REDIS_PORT = 6379

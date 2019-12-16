@@ -9,6 +9,7 @@ verify_ssl = true
 tornado = "*"
 mysql-connector = "*"
 neo4j = "*"
+redis = "*"
 
 [requires]
 python_version = "3.5"

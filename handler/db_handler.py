@@ -28,6 +28,12 @@ class DbHandler(RequestHandler, ABC):
         action = args["action"]
         typE = args["type"]
         tablename = action_type_to_tablename[action][typE]
+
+        count = False
+        if "count" in args:
+            count = True
+            del args["count"]
+
         trans_args = {
             "where": [],
             "sort": {},
@@ -49,8 +55,11 @@ class DbHandler(RequestHandler, ABC):
             trans_args["where"].append((info["field"], info["value"], info["joiner"]))
 
         query = Query(tablename, trans_args["where"], trans_args["sort"], trans_args["page"], trans_args["export"])
-        query_result = await query.search()
-        self.write(json.dumps(query_result, ensure_ascii=False, indent=4, cls=CJsonEncoder))
+        if not trans_args["export"]:
+            query_result = await query.search()
+            self.write(json.dumps(query_result, ensure_ascii=False, indent=4, cls=CJsonEncoder))
+        else:
+            self.write()
 
     def on_finish(self):
         pass
