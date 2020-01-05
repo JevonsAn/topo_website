@@ -62,6 +62,13 @@ db_request_args = {
         "key_type": "",
         "joiner": "="
     },
+    "task_id": {
+        "validate": {
+            "type": "string",
+        },
+        "key_type": "",
+        "joiner": "="
+    },
     "ip": {
         "validate": {
             "type": "ip",

@@ -97,6 +97,10 @@ class Query(object):
         query = self.where_args
         if not tablename:
             return ""
+        #此处and之后为检测为task的表
+        if tablename not in tablename_to_fields and tablename.startswith("edges._"): 
+            tablename = "odinary_task_table"
+
         fields = tablename_to_fields[tablename]["fields"]
         # print("fields:\n", fields)
         # sql_where = "where "

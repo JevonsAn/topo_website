@@ -37,7 +37,7 @@ class ConnManage(object):
         try:
             conn = self._getConn(use_pool=use_pool)
             cursor = conn.cursor(dictionary=dictionary)
-            print(sql)
+            # print(sql)
             cursor.execute(sql)
             if fetchone:
                 result = cursor.fetchone()
@@ -54,7 +54,7 @@ class ConnManage(object):
 
 
 publicConnManage = ConnManage()
-
+linkChangeConnManage = ConnManage(20)
 
 class Mysql(object):
     def __init__(self, host="edges"):

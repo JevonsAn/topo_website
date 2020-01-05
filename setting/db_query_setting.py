@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-action_union = {"ipv4", "ipv6", "router", "pop", "gateway", "cable"}
-type_union = {"node", "edge", "router_edge", "mpls_edge", "mrinfo_edge", "pchar_edge", "neighbor"}
+action_union = {"ipv4", "ipv6", "router", "pop", "gateway", "cable" , "links"}
+type_union = {"node", "edge", "router_edge", "mpls_edge", "mrinfo_edge", "pchar_edge", "neighbor", "ipv4_link","ipv6_link","mpls_link","mrinfo_link","pchar_link","parsedConf_link","iffinder_link"}
 
 action_type_to_tablename = {
     "ipv4": {
@@ -70,6 +70,138 @@ arg_transform = {
 }
 
 tablename_to_fields = {
+    "odinary_task_table": {
+        "fields": {
+            "in_ip": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_ip": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "is_dest": {
+                "type": "char",
+                "joiner": "="
+            },
+            "star": {
+                "type": "int",
+                "joiner": "="
+            },
+            "latency": {
+                "type": "float",
+                "joiner": "="
+            },
+            "freq": {
+                "type": "int",
+                "joiner": "="
+            },
+            "ttl": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "monitor": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "first_seen": {
+                "type": "timestamp",
+                "joiner": "="
+            },
+            "last_seen": {
+                "type": "timestamp",
+                "joiner": "="
+            },
+            "in_asn": {
+                "type": "int",
+                "joiner": "="
+            },
+            "in_country": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "in_region": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "in_city": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "in_latitude": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "in_longitude": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "in_whois": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "in_domain": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_asn": {
+                "type": "int",
+                "joiner": "="
+            },
+            "out_country": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_region": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_city": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_latitude": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_longitude": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_whois": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "out_domain": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "is_as_boundary": {
+                "type": "char",
+                "joiner": "="
+            },
+            "is_country_boundary": {
+                "type": "char",
+                "joiner": "="
+            },
+            "bandwidth": {
+                "type": "varchar",
+                "joiner": "="
+            },
+            "type": {
+                "type": "int",
+                "joiner": "="
+            },
+            "misc": {
+                "type": "longtext",
+                "joiner": "="
+            },
+            "updated_by": {
+                "type": "longtext",
+                "joiner": "="
+            }
+        }
+    },
     "statistics.cable_info": {
         "fields": {
             "id": {
