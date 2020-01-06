@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-action_union = {"ipv4", "ipv6", "router", "pop", "gateway", "cable" , "links"}
+action_union = {"ipv4", "ipv6", "router", "pop", "gateway", "cable" , "task"}
 type_union = {"node", "edge", "router_edge", "mpls_edge", "mrinfo_edge", "pchar_edge", "neighbor", "ipv4_link","ipv6_link","mpls_link","mrinfo_link","pchar_link","parsedConf_link","iffinder_link"}
 
 action_type_to_tablename = {

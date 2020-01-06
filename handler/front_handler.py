@@ -1,4 +1,5 @@
 from tornado.web import StaticFileHandler , HTTPError
+import os
 class DefaultFileFallbackHandler(StaticFileHandler):
     def return400(self, reason):
         self.write(reason)
