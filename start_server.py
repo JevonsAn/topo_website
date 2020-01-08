@@ -16,8 +16,8 @@ def make_app():
             url(r"/getLinkChange", OtherHandler, name="getLinkChange"),
             url(r"/task_db", TaskHandler, name="task"),
             url(r'/(.*)', DefaultFileFallbackHandler, {
-            'path': 'public',
-            'default_filename': 'index.html'
+                'path': 'public',
+                'default_filename': 'index.html'
             })
         ],
         debug=True
