@@ -34,16 +34,25 @@ class ConnManage(object):
     def execute_and_fetch(self, sql, fetchone=False, use_pool=True, dictionary=True):
         conn, cursor = None, None
         result = []
+        # print(sql)
+        # print("============4.1=============")
+        print(sql)
         try:
             conn = self._getConn(use_pool=use_pool)
             cursor = conn.cursor(dictionary=dictionary)
             # print(sql)
+            # print("============4.2=============")
             cursor.execute(sql)
+            # print("============4.3=============")
             if fetchone:
+                # print("============4.4=============")
                 result = cursor.fetchone()
             else:
+                # print("============4.5=============")
                 result = cursor.fetchall()
+            # print("============4.6=============")
         except Exception as e:
+            # print("============4.7=============")
             return False, e
         finally:
             if cursor:
