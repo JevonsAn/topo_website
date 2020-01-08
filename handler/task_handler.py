@@ -57,16 +57,19 @@ class TaskHandler(RequestHandler, ABC):
         if action in action_type_expire and typE in action_type_expire[action]:
             info = action_type_expire[action][typE]
             trans_args["where"].append((info["field"], info["value"], info["joiner"]))
-
+        # print("============1=============")
         query = Query(tablename, trans_args["where"], trans_args["sort"], trans_args["page"], trans_args["export"])
         export_args = trans_args["export"]
 
+        # print("============2=============")
         if (not export_args) or "export" not in export_args or "export_type" not in export_args:
             query_result = await query.search()
             self.write(json.dumps(query_result, ensure_ascii=False, indent=4, cls=CJsonEncoder))
 
         else:
+            # print("============3=============")
             query_result = await query.searchExport()
+            # print("============6=============")
             content = formatter(export_args["export_type"], query_result)
             type_map = {
                 "json": "application/json",

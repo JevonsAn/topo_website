@@ -87,7 +87,7 @@ class Query(object):
         self.where_part = where_part
         self.data_sql = "select * from " + tablename + where_part + sort_part + limit_part + ";"
         self.count_sql = "select count(*) as c from " + tablename + where_part + ";"
-        self.export_sql = "select * from " + tablename + where_part + sort_part + ";"
+        self.export_sql = "select * from " + tablename + where_part + sort_part +limit_part+ ";"
         self.timeout_time = 1
         self.redis_tablename = "count_cache"
         self.key = self.tablename + "@" + self.where_part
@@ -237,7 +237,10 @@ class Query(object):
         return self.fetch_count()
 
     async def searchExport(self):
+        # print("============4=============")
+        
         isSuccess, sql_result = publicConnManage.execute_and_fetch(self.export_sql, use_pool=False)
+        # print("============5=============")
         if not isSuccess:
             raise sql_result
         return list(sql_result)
