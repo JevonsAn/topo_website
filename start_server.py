@@ -4,7 +4,7 @@ from handler.db_handler import DbHandler
 from handler.gragh_handler import GraphHandler
 from handler.other_handler import OtherHandler
 from handler.task_handler import TaskHandler
-from handler.front_handler import DefaultFileFallbackHandler
+from handler.front_handler import DefaultFileFallbackHandler, FileHandler
 
 
 def make_app():
@@ -15,10 +15,13 @@ def make_app():
             url(r"/other", OtherHandler, name="other"),
             url(r"/getLinkChange", OtherHandler, name="getLinkChange"),
             url(r"/task_db", TaskHandler, name="task"),
-            url(r'/(.*)', DefaultFileFallbackHandler, {
-                'path': 'public',
-                'default_filename': 'index.html'
-            })
+            url(r'/', FileHandler),
+
+            url(r'/static/(.*)', DefaultFileFallbackHandler,
+                {
+                    'path': 'public/static'
+                }
+                )
         ],
         debug=True
     )

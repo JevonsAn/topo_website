@@ -87,7 +87,7 @@ class Query(object):
         self.where_part = where_part
         self.data_sql = "select * from " + tablename + where_part + sort_part + limit_part + ";"
         self.count_sql = "select count(*) as c from " + tablename + where_part + ";"
-        self.export_sql = "select * from " + tablename + where_part + sort_part +limit_part+ ";"
+        self.export_sql = "select * from " + tablename + where_part + sort_part + ";"
         self.timeout_time = 1
         self.redis_tablename = "count_cache"
         self.key = self.tablename + "@" + self.where_part

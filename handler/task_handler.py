@@ -1,7 +1,7 @@
 import datetime
 from abc import ABC
 
-from tornado.web import RequestHandler
+from handler.BaseHandler import BaseHandler
 from setting.arg_setting import db_request_args, validate_args, db_required_args
 from setting.db_query_setting import action_type_expire
 from setting.task_query_setting import type_to_table_prefix
@@ -9,22 +9,7 @@ from model.usual_query import Query, CJsonEncoder, formatter
 import json
 
 
-class TaskHandler(RequestHandler, ABC):
-    SUPPORTED_METHODS = RequestHandler.SUPPORTED_METHODS + ('RETURN400',)
-
-    def return400(self, reason):
-        self.write(reason)
-        self.set_status(400, "参数错误")
-        self.finish()
-
-    def prepare(self):
-        self.args = {str(k): self.request.arguments[k][0].decode() for k in self.request.arguments}  # 获取所有参数
-        print(self.args)
-        args = self.args
-        flag, msg = validate_args(args, db_required_args, db_request_args)
-        if not flag:
-            self.return400(msg)
-
+class TaskHandler(BaseHandler, ABC):
     async def get(self):
         args = self.args
         action = args["action"]
@@ -80,6 +65,3 @@ class TaskHandler(RequestHandler, ABC):
                             (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), export_args["export_type"]))
             self.set_header("Content-Type", type_map[export_args["export_type"]])
             self.write(content)
-
-    def on_finish(self):
-        pass

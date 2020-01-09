@@ -10,6 +10,7 @@ tornado = "*"
 mysql-connector = "*"
 neo4j = "*"
 redis = "*"
+requests = "*"
 
 [requires]
 python_version = "3.5"

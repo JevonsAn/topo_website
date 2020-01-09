@@ -1,29 +1,15 @@
 import datetime
 from abc import ABC
 
-from tornado.web import RequestHandler
+from handler.BaseHandler import BaseHandler
 from setting.arg_setting import db_request_args, validate_args, db_required_args
 from setting.db_query_setting import action_type_to_tablename, action_type_expire
 from model.usual_query import Query, CJsonEncoder, formatter
+from model.request import get_deviceinfos
 import json
 
 
-class DbHandler(RequestHandler, ABC):
-    SUPPORTED_METHODS = RequestHandler.SUPPORTED_METHODS + ('RETURN400',)
-
-    def return400(self, reason):
-        self.write(reason)
-        self.set_status(400, "参数错误")
-        self.finish()
-
-    def prepare(self):
-        self.args = {str(k): self.request.arguments[k][0].decode() for k in self.request.arguments}  # 获取所有参数
-        print(self.args)
-        args = self.args
-        flag, msg = validate_args(args, db_required_args, db_request_args)
-        if not flag:
-            self.return400(msg)
-
+class DbHandler(BaseHandler, ABC):
     async def get(self):
         args = self.args
         action = args["action"]
@@ -60,6 +46,18 @@ class DbHandler(RequestHandler, ABC):
 
         if (not export_args) or "export" not in export_args or "export_type" not in export_args:
             query_result = await query.search()
+
+            # if typE == "node" and action in {"ipv4", "router", "gateway"}:
+            #     iplist = []
+            #     for i in query_result["data"]:
+            #         iplist.append(i["ip"])
+            #     try:
+            #         deviceinfos = get_deviceinfos(iplist)
+            #         for i, info in enumerate(deviceinfos):
+            #             query_result["data"][i]["device_info"] = info
+            #     except Exception as e:
+            #         print("get_device_info error: ", e)
+
             self.write(json.dumps(query_result, ensure_ascii=False, indent=4, cls=CJsonEncoder))
 
         else:
@@ -74,6 +72,3 @@ class DbHandler(RequestHandler, ABC):
                             (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), export_args["export_type"]))
             self.set_header("Content-Type", type_map[export_args["export_type"]])
             self.write(content)
-
-    def on_finish(self):
-        pass

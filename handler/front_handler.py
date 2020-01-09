@@ -1,20 +1,22 @@
+from abc import ABC
+
+from handler.BaseHandler import BaseHandler
 from tornado.web import StaticFileHandler, HTTPError
+from model.login import get_check_result
 import os
 
 
-class DefaultFileFallbackHandler(StaticFileHandler):
-    def return400(self, reason):
-        self.write(reason)
-        self.set_status(400, "参数错误")
-        self.finish()
+class FileHandler(BaseHandler, ABC):
+    async def prepare(self):
+        self.args = {str(k): self.request.arguments[k][0].decode() for k in self.request.arguments}  # 获取所有参数
+        print(self.args)
+        self.check_login_status()
 
-    def prepare(self):
-        pass
-        # 登录验证
-        # self.args = {str(k): self.request.arguments[k][0].decode() for k in self.request.arguments}  # 获取所有参数
-        # print(self.args)
-        # self.return400("11")
+    async def get(self):
+        self.render("../public/index.html")
 
+
+class DefaultFileFallbackHandler(StaticFileHandler, ABC):
     def validate_absolute_path(self, root, absolute_path):
         try:
             absolute_path = super().validate_absolute_path(root, absolute_path)
